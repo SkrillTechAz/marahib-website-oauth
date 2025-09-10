@@ -13,7 +13,6 @@ const AuthCallback: React.FC = () => {
       console.log('🔄 Auth callback started');
       console.log('📍 Current URL:', window.location.href);
       console.log('🔍 Search params:', window.location.search);
-      console.log('🔍 Search params:', window.location.search);
       
       try {
         const urlParams = new URLSearchParams(window.location.search);
@@ -27,39 +26,14 @@ const AuthCallback: React.FC = () => {
         console.log('📊 Parsed URL parameters:', {
           error,
           errorDescription,
-          errorDescription,
           success,
-          token: token ? `${token.substring(0, 20)}...` : null,
-          accessToken: accessToken ? `${accessToken.substring(0, 20)}...` : null,
           token: token ? `${token.substring(0, 20)}...` : null,
           accessToken: accessToken ? `${accessToken.substring(0, 20)}...` : null,
           userId,
           hasRefreshToken: !!refreshToken
         });
         // Handle OAuth errors
-        // Handle OAuth errors
         if (error) {
-          console.error('❌ OAuth error detected:', error);
-          console.error('❌ Error description:', errorDescription);
-          
-          let errorMessage = 'Authentication failed';
-          
-          switch (error) {
-            case 'access_denied':
-              errorMessage = 'Access was denied. Please try signing in again.';
-              break;
-            case 'invalid_request':
-              errorMessage = 'Invalid authentication request. Please try again.';
-              break;
-            case 'server_error':
-              errorMessage = 'Server error occurred. Please try again later.';
-              break;
-            case 'oauth_error':
-              errorMessage = errorDescription || 'OAuth authentication failed';
-              break;
-            default:
-              errorMessage = errorDescription || `Authentication error: ${error}`;
-          }
           console.error('❌ OAuth error detected:', error);
           console.error('❌ Error description:', errorDescription);
           
@@ -84,15 +58,6 @@ const AuthCallback: React.FC = () => {
           
           setError(errorMessage);
           setStatus('error');
-          
-          // Clean up URL and redirect to sign-in after delay
-          setTimeout(() => {
-            navigate('/signin', { 
-              state: { 
-                error: errorMessage 
-              }
-            });
-          }, 3000);
           
           // Clean up URL and redirect to sign-in after delay
           setTimeout(() => {
@@ -165,15 +130,6 @@ const AuthCallback: React.FC = () => {
             }
           });
         }, 3000);
-        
-        // Redirect to sign-in after delay
-        setTimeout(() => {
-          navigate('/signin', {
-            state: {
-              error: errorMessage
-            }
-          });
-        }, 3000);
       }
     };
 
@@ -184,14 +140,7 @@ const AuthCallback: React.FC = () => {
     // Clear any stored tokens and redirect
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
-    // Clear any stored tokens and redirect
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
     navigate('/signin');
-  };
-
-  const handleGoToDashboard = () => {
-    navigate('/dashboard');
   };
 
   const handleGoToDashboard = () => {
@@ -202,15 +151,6 @@ const AuthCallback: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-stone-100 flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
         <div className="bg-white rounded-lg shadow-lg p-8">
-          {/* Logo */}
-          <div className="mb-6">
-            <img 
-              src="/Design sans titre.png" 
-              alt="Marahb" 
-              className="h-12 w-auto object-contain mx-auto"
-            />
-          </div>
-          
           {/* Logo */}
           <div className="mb-6">
             <img 
