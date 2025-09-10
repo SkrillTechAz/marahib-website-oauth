@@ -214,7 +214,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Google OAuth - just initiates the flow, token gets saved in callback
   const signInWithGoogle = async () => {
     try {
-      const apiUrl = API_BASE_URL ? `${API_BASE_URL}/api/auth/google` : '/api/auth/google';
+      const apiUrl = `${API_BASE_URL}/api/auth/google`;
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      
+      console.log('🔄 AuthContext: Initiating Google OAuth...');
+      console.log('🌐 API URL:', apiUrl);
+      console.log('🔗 Redirect URL:', redirectTo);
       
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -222,26 +227,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo,
         }),
-        credentials: "include",
       });
 
+      console.log('📡 Google OAuth response status:', response.status);
       const data = await response.json();
+      console.log('📦 Google OAuth response data:', data);
 
       if (!response.ok) {
-        return { error: data.error || "Failed to initiate Google sign-in" };
+        const errorMessage = data.error || data.message || "Failed to initiate Google sign-in";
+        console.error('❌ Google OAuth failed:', errorMessage);
+        return { error: errorMessage };
       }
 
       if (data.url) {
+        console.log('✅ Redirecting to Google OAuth URL');
         // Redirect to Google OAuth
         window.location.href = data.url;
         return {};
       } else {
-        return { error: "No OAuth URL returned" };
+        const errorMessage = data.error || "No OAuth URL returned from server";
+        console.error('❌ No OAuth URL:', errorMessage);
+        return { error: errorMessage };
       }
     } catch (error) {
-      return { error: "Network error occurred" };
+      console.error('💥 Google OAuth exception:', error);
+      const errorMessage = error instanceof Error ? error.message : "Network error occurred";
+      return { error: errorMessage };
     }
   };
 
@@ -250,7 +263,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const token = localStorage.getItem("access_token");
 
       if (token) {
-        const apiUrl = API_BASE_URL ? `${API_BASE_URL}/api/auth/logout` : '/api/auth/logout';
+        const apiUrl = `${API_BASE_URL}/api/auth/logout`;
         
         await fetch(apiUrl, {
           method: "POST",
@@ -258,13 +271,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          credentials: "include",
         });
       }
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
       localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
       localStorage.removeItem("user");
       setUser(null);
     }

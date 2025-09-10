@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Shield, Heart, Star } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import GoogleSignIn from '../components/auth/GoogleSignIn';
@@ -21,7 +21,18 @@ const SignUpPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
   const { signUp } = useAuth();
+
+  // Handle OAuth errors from location state
+  React.useEffect(() => {
+    if (location.state?.error) {
+      console.log('🚨 Error from location state:', location.state.error);
+      setError(location.state.error);
+      // Clear the state to prevent the error from persisting
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [location.state]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +53,7 @@ const SignUpPage: React.FC = () => {
     }
     
     try {
+      console.log('🔄 Starting sign up process...');
       const result = await signUp(formData.email, formData.password, {
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -49,13 +61,16 @@ const SignUpPage: React.FC = () => {
       });
       
       if (result.error) {
+        console.error('❌ Sign up failed:', result.error);
         setError(result.error);
       } else {
+        console.log('✅ Sign up successful, redirecting to dashboard...');
         // Redirect to dashboard after successful signup
         navigate('/dashboard');
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      console.error('💥 Sign up exception:', err);
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -67,6 +82,22 @@ const SignUpPage: React.FC = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    
+    // Clear error when user starts typing
+    if (error) {
+      setError('');
+    }
+  };
+
+  const handleOAuthSuccess = () => {
+    console.log("🎉 OAuth success callback triggered");
+    setError("");
+    navigate("/dashboard");
+  };
+
+  const handleOAuthError = (error: string) => {
+    console.error("🚨 OAuth error callback triggered:", error);
+    setError(error);
   };
 
   return (
@@ -160,9 +191,15 @@ const SignUpPage: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6"
+              className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-center"
             >
-              <p className="text-red-800 text-sm">{error}</p>
+              <div className="flex items-center justify-center mb-2">
+                <svg className="w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-red-800 font-medium text-sm">Sign-up Error</span>
+              </div>
+              <p className="text-red-700 text-sm leading-relaxed">{error}</p>
             </motion.div>
           )}
 
@@ -174,7 +211,8 @@ const SignUpPage: React.FC = () => {
           >
             <GoogleSignIn
               variant="signup"
-              onError={(error) => setError(error)}
+              onError={handleOAuthError}
+              onSuccess={handleOAuthSuccess}
             />
             
             {/* Divider */}

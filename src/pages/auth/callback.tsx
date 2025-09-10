@@ -10,85 +10,170 @@ const AuthCallback: React.FC = () => {
 
   useEffect(() => {
     const handleCallback = async () => {
-      // Add a small delay to ensure URL parameters are fully loaded
-      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log('🔄 Auth callback started');
+      console.log('📍 Current URL:', window.location.href);
+      console.log('🔍 Search params:', window.location.search);
+      console.log('🔍 Search params:', window.location.search);
       
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const error = urlParams.get('error');
+        const errorDescription = urlParams.get('error_description');
         const success = urlParams.get('success');
         const token = urlParams.get('token');
         const userId = urlParams.get('user_id');
-        
-        console.log('=== CALLBACK DEBUG ===');
-        console.log('Full URL:', window.location.href);
-        console.log('Search params:', window.location.search);
-        console.log('Parsed params:', {
+        const accessToken = urlParams.get('access_token');
+        const refreshToken = urlParams.get('refresh_token');
+        console.log('📊 Parsed URL parameters:', {
           error,
+          errorDescription,
+          errorDescription,
           success,
-          token: token ? `${token.substring(0, 20)}...` : 'missing',
-          userId
+          token: token ? `${token.substring(0, 20)}...` : null,
+          accessToken: accessToken ? `${accessToken.substring(0, 20)}...` : null,
+          token: token ? `${token.substring(0, 20)}...` : null,
+          accessToken: accessToken ? `${accessToken.substring(0, 20)}...` : null,
+          userId,
+          hasRefreshToken: !!refreshToken
         });
-        console.log('======================');
-        
+        // Handle OAuth errors
+        // Handle OAuth errors
         if (error) {
-          console.log('Error in URL params:', error);
-          setError(error === 'oauth_error' ? 'Authentication failed' : 'An error occurred during sign in');
+          console.error('❌ OAuth error detected:', error);
+          console.error('❌ Error description:', errorDescription);
+          
+          let errorMessage = 'Authentication failed';
+          
+          switch (error) {
+            case 'access_denied':
+              errorMessage = 'Access was denied. Please try signing in again.';
+              break;
+            case 'invalid_request':
+              errorMessage = 'Invalid authentication request. Please try again.';
+              break;
+            case 'server_error':
+              errorMessage = 'Server error occurred. Please try again later.';
+              break;
+            case 'oauth_error':
+              errorMessage = errorDescription || 'OAuth authentication failed';
+              break;
+            default:
+              errorMessage = errorDescription || `Authentication error: ${error}`;
+          }
+          console.error('❌ OAuth error detected:', error);
+          console.error('❌ Error description:', errorDescription);
+          
+          let errorMessage = 'Authentication failed';
+          
+          switch (error) {
+            case 'access_denied':
+              errorMessage = 'Access was denied. Please try signing in again.';
+              break;
+            case 'invalid_request':
+              errorMessage = 'Invalid authentication request. Please try again.';
+              break;
+            case 'server_error':
+              errorMessage = 'Server error occurred. Please try again later.';
+              break;
+            case 'oauth_error':
+              errorMessage = errorDescription || 'OAuth authentication failed';
+              break;
+            default:
+              errorMessage = errorDescription || `Authentication error: ${error}`;
+          }
+          
+          setError(errorMessage);
           setStatus('error');
+          
+          // Clean up URL and redirect to sign-in after delay
+          setTimeout(() => {
+            navigate('/signin', { 
+              state: { 
+                error: errorMessage 
+              }
+            });
+          }, 3000);
+          
+          // Clean up URL and redirect to sign-in after delay
+          setTimeout(() => {
+            navigate('/signin', { 
+              state: { 
+                error: errorMessage 
+              }
+            });
+          }, 3000);
           return;
         }
 
-        if (success === 'true' && token) {
-          console.log('✅ SUCCESS: Storing token from API redirect');
+        // Use either token or access_token parameter
+        const authToken = token || accessToken;
+        
+        if (success === 'true' && authToken) {
+          console.log('✅ OAuth success detected, storing token...');
           
-          // Store the token in localStorage
-          localStorage.setItem('access_token', token);
+          // Store tokens in localStorage
+          localStorage.setItem('access_token', authToken);
+          if (refreshToken) {
+            localStorage.setItem('refresh_token', refreshToken);
+          }
+          console.log('🔄 Tokens stored, updating auth context...');
           
-          console.log('🔄 Token stored, updating auth context...');
-          // Check auth to update the context with user data
+          // Update auth context with user data
           await checkAuth();
           
           setStatus('success');
           
-          // Clean up URL parameters
-          window.history.replaceState({}, document.title, '/auth/callback');
+          // Clean up URL parameters to remove sensitive data
+          window.history.replaceState({}, document.title, window.location.pathname);
           
-          // Redirect to dashboard after a short delay
+          // Redirect to dashboard
           setTimeout(() => {
             console.log('🚀 Redirecting to dashboard...');
             navigate('/dashboard');
-          }, 1500);
+          }, 1000);
         } else {
-          // Check if we have a token in localStorage (might be from a previous attempt)
-          const existingToken = localStorage.getItem('access_token');
-          if (existingToken) {
-            console.log('🔍 Found existing token, checking auth...');
-            await checkAuth();
-            
-            // If auth check was successful, redirect
-            setTimeout(async () => {
-              const updatedToken = localStorage.getItem('access_token');
-              if (updatedToken) {
-                console.log('✅ Token valid, redirecting to dashboard...');
-                setStatus('success');
-                navigate('/dashboard');
-              } else {
-                console.log('❌ Token invalid');
-                setError('Authentication completed but missing required data');
-                setStatus('error');
+          // If we get here, something went wrong
+          console.error('❌ OAuth callback missing required data:', {
+            success,
+            hasToken: !!authToken,
+            hasUserId: !!userId
+          });
+          
+          setError('Authentication completed but missing required data. Please try signing in again.');
+          setStatus('error');
+          
+          // Redirect to sign-in after delay
+          setTimeout(() => {
+            navigate('/signin', {
+              state: {
+                error: 'OAuth authentication incomplete. Please try again.'
               }
-            }, 500);
-          } else {
-            console.log('❌ MISSING DATA:', { success, tokenPresent: !!token });
-            setError('Authentication completed but missing required data');
-            setStatus('error');
-          }
+            });
+          }, 3000);
         }
-
       } catch (err) {
-        console.error('💥 Callback error:', err);
-        setError('Failed to complete authentication');
+        console.error('💥 OAuth callback exception:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to complete authentication';
+        setError(errorMessage);
         setStatus('error');
+        
+        // Redirect to sign-in after delay
+        setTimeout(() => {
+          navigate('/signin', {
+            state: {
+              error: errorMessage
+            }
+          });
+        }, 3000);
+        
+        // Redirect to sign-in after delay
+        setTimeout(() => {
+          navigate('/signin', {
+            state: {
+              error: errorMessage
+            }
+          });
+        }, 3000);
       }
     };
 
@@ -96,18 +181,50 @@ const AuthCallback: React.FC = () => {
   }, [navigate, checkAuth]);
 
   const handleRetry = () => {
+    // Clear any stored tokens and redirect
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    // Clear any stored tokens and redirect
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     navigate('/signin');
+  };
+
+  const handleGoToDashboard = () => {
+    navigate('/dashboard');
+  };
+
+  const handleGoToDashboard = () => {
+    navigate('/dashboard');
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-stone-100 flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
         <div className="bg-white rounded-lg shadow-lg p-8">
+          {/* Logo */}
+          <div className="mb-6">
+            <img 
+              src="/Design sans titre.png" 
+              alt="Marahb" 
+              className="h-12 w-auto object-contain mx-auto"
+            />
+          </div>
+          
+          {/* Logo */}
+          <div className="mb-6">
+            <img 
+              src="/Design sans titre.png" 
+              alt="Marahb" 
+              className="h-12 w-auto object-contain mx-auto"
+            />
+          </div>
+          
           {status === 'loading' && (
             <>
               <div className="w-16 h-16 border-4 border-stone-200 border-t-stone-600 rounded-full animate-spin mx-auto mb-4"></div>
               <h2 className="text-xl font-semibold text-gray-900 mb-2">Completing sign in...</h2>
-              <p className="text-gray-600">Please wait while we set up your account.</p>
+              <p className="text-gray-600">Please wait while we complete your Google sign-in.</p>
             </>
           )}
 
@@ -119,8 +236,16 @@ const AuthCallback: React.FC = () => {
                 </svg>
               </div>
               <h2 className="text-xl font-semibold text-gray-900 mb-2">Welcome to Marahb!</h2>
-              <p className="text-gray-600 mb-4">Your account has been set up successfully.</p>
-              <p className="text-sm text-gray-500">Redirecting to your dashboard...</p>
+              <p className="text-gray-600 mb-6">Your Google sign-in was successful!</p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleGoToDashboard}
+                  className="w-full bg-stone-600 hover:bg-stone-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                >
+                  Go to Dashboard
+                </button>
+                <p className="text-sm text-gray-500">Redirecting automatically...</p>
+              </div>
             </>
           )}
 
@@ -131,14 +256,17 @@ const AuthCallback: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Sign in failed</h2>
-              <p className="text-gray-600 mb-6">{error}</p>
-              <button
-                onClick={handleRetry}
-                className="w-full bg-stone-600 hover:bg-stone-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
-              >
-                Try Again
-              </button>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Google Sign-in Failed</h2>
+              <p className="text-gray-600 mb-6 text-sm leading-relaxed">{error}</p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleRetry}
+                  className="w-full bg-stone-600 hover:bg-stone-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                >
+                  Try Again
+                </button>
+                <p className="text-xs text-gray-500">Redirecting to sign-in page...</p>
+              </div>
             </>
           )}
         </div>
