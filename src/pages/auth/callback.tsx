@@ -14,6 +14,8 @@ const AuthCallback: React.FC = () => {
       console.log('📍 Current URL:', window.location.href);
       console.log('🔍 Search params:', window.location.search);
       
+      let errorMessage = 'Authentication failed';
+      
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const error = urlParams.get('error');
@@ -36,8 +38,6 @@ const AuthCallback: React.FC = () => {
         if (error) {
           console.error('❌ OAuth error detected:', error);
           console.error('❌ Error description:', errorDescription);
-          
-          let errorMessage = 'Authentication failed';
           
           switch (error) {
             case 'access_denied':
